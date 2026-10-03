@@ -1,6 +1,8 @@
 # PawpyStuff AI Namer
 
-Automated file-classification pipeline for PawpyStuff creator-content videos. Follows the PawpyStuff Naming Convention SOP (V3.2). The AI classifies each clip; deterministic code assembles the filename.
+Automated file-classification pipeline for PawpyStuff creator-content videos. Follows the PawpyStuff Naming Convention SOP (V3.5). The AI classifies each clip; deterministic code assembles the filename.
+
+V3.5 adds **audio analysis** (Gemini listens for on-camera speech ≥3 sec to detect `Voiceover`), **CozyRiderColor** (visual cover colour token), and **Cushion** (checkered-cushion accessory token).
 
 **Read-only** — the runner writes proposed filenames to a CSV and per-file audit logs, but never renames or moves files anywhere.
 
@@ -85,11 +87,9 @@ The first time you run `claude` in a project directory, it will walk you through
 
 ```bash
 cd ~/Desktop
-git clone <REPO_URL> PawpyStuff
+git clone https://github.com/ghilmanrandhawa/pawpystuff-ai-namer PawpyStuff
 cd PawpyStuff
 ```
-
-Replace `<REPO_URL>` with the GitHub / Drive URL where the code lives. If you received the code as a folder (not git), just move that folder into `~/Desktop` and `cd` into it.
 
 ### 5. Create a Python virtual environment and install dependencies
 
@@ -177,7 +177,7 @@ Log in with your Anthropic account the first time you launch `claude` in a proje
 
 ```powershell
 cd $HOME\Desktop
-git clone <REPO_URL> PawpyStuff
+git clone https://github.com/ghilmanrandhawa/pawpystuff-ai-namer PawpyStuff
 cd PawpyStuff
 ```
 
@@ -251,7 +251,7 @@ If you skip Drive setup, `--local-dir` and `--local-file` modes still work with 
 **macOS / Linux:**
 ```bash
 source venv/bin/activate
-python tests/test_validator.py        # expect "N/N checks passed"
+python tests/test_validator.py        # expect "49/49 checks passed"
 python scripts/run_pilot.py --help    # prints all CLI flags
 ```
 
@@ -461,16 +461,17 @@ All CLI flags map to environment variables. CLI flags override env vars.
 ```
 PawpyStuff/
 ├── pipeline/                          Python package (all business logic)
-│   ├── vocabulary.py                  Loads V3.2 taxonomy from JSON at import
+│   ├── vocabulary.py                  Loads V3.5 taxonomy from JSON at import
 │   ├── source.py                      Unified source discovery (Drive/local, folder/file)
 │   ├── drive_client.py                Drive listing + MIME-fallback ext resolution
-│   ├── media.py                       Download + ffprobe + frame extraction
+│   ├── media.py                       Download + ffprobe + frame + audio extraction
 │   ├── classifier.py                  Gemini multimodal call + response schema
 │   ├── validator.py                   Deterministic filename assembly
 │   └── config.py                      Env-driven Config
 ├── scripts/run_pilot.py               Orchestrator (threaded, per-file, 4 source modes)
-├── tests/test_validator.py            Vocabulary + assembly unit checks
-├── PawpyStuff_Creator_Content_Taxonomy_V3.2.json    ← runtime contract
+├── tests/test_validator.py            Vocabulary + assembly unit checks (49 checks)
+├── PawpyStuff_Creator_Content_Taxonomy_V3.5.json    ← runtime contract
+├── PawpyStuff_Creator_Content_Taxonomy_V3.2.json    (historic)
 ├── requirements.txt
 ├── CLAUDE.md                          Rich project context (for Claude Code)
 └── README.md                          This file
@@ -485,8 +486,9 @@ See **`CLAUDE.md`** for design decisions, tuning history, accuracy rates, and go
 - **Videos:** `.mov`, `.mp4` (Drive `video/quicktime`, `video/mp4`)
 - **Images:** `.jpg`, `.jpeg`, `.png`, `.heic`
 - **MIME fallback:** files without an extension are resolved from Drive's `mimeType` (Drive) or `mimetypes.guess_type()` (local).
+- **Audio:** short clips (≤30 s, ≤15 MB) are sent as full video bytes (audio embedded). Longer clips have audio extracted separately as mono 16 kHz MP3 via ffmpeg and sent alongside the sampled frames. Muted clips (`NoAudioStream`) are a valid case — `voiceover` is set to `null`, not an error.
 
-Files > 10 minutes route to `NeedsReview` with reason `LongVideo` per V3.0 spec (no auto-classification).
+Files > 10 minutes route to `NeedsReview` with reason `LongVideo` (no auto-classification).
 
 ---
 
@@ -545,4 +547,5 @@ The service account email isn't shared on the target folder. In Google Drive, ri
 Open `pilot_output/logs/<id>.json` and read `classification.reasoning` — the model explains why it chose each token. Common cases:
 - **Wrong Category:** the file lives outside a Category folder and the visual signal was ambiguous. Move it to `ProductShot/`, `ProductUse/`, or `Problem/` on Drive so folder Category is authoritative.
 - **Wrong Scene:** the clip may match multiple scenes; check `scene_runner_up` for the model's second choice.
-- **Wrong Shot:** shot-type accuracy plateaus around 78-80% on V3.2. Client-labeled reference frames drive the model; more examples in the answer key improve future runs.
+- **Wrong Shot:** shot-type accuracy is the hardest field (~69% on the current answer key). Client-labeled reference frames drive the model; more examples in the answer key improve future runs.
+- **Wrong Voiceover/Cushion/Color:** these V3.5 tokens rely on audio and visual inspection. Check `classification.reasoning` in the log and verify the raw clip.
