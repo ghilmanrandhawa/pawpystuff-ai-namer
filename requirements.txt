@@ -1,0 +1,24 @@
+# PawpyStuff AI Namer — runtime dependencies (Python 3.11+)
+#
+# Install with:
+#   python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+#
+# System deps (not on PyPI):
+#   - ffmpeg + ffprobe on $PATH (brew install ffmpeg)
+
+# Google Drive API + service-account auth
+google-api-python-client>=2.100
+google-auth>=2.30
+google-auth-httplib2>=0.2
+
+# HTTP client for Gemini REST calls
+requests>=2.31
+
+# xlsx parsing for the client's answer-key spreadsheet (used by ad-hoc
+# comparison scripts; not needed for the runtime pipeline itself but kept
+# here for a friction-free re-install).
+openpyxl>=3.1
+
+# .docx parsing for the SOP documents (used only during development to
+# extract text from client-supplied docx files).
+python-docx>=1.1

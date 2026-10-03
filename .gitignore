@@ -1,0 +1,14 @@
+venv/
+.media_cache/
+pilot_output*/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+ps-naming-convention-*.json
+.idea/
+nr_retry_ids.txt
+docs_archive/
+docs_extracted/
+/tmp/
+*\ 2.py
